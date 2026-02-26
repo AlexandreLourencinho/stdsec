@@ -1,6 +1,10 @@
+import com.github.gradle.node.npm.task.NpmTask
+
+
 plugins {
     java
     id("io.quarkus")
+    id("com.github.node-gradle.node") version "7.0.2"
 }
 
 repositories {
@@ -38,32 +42,23 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 
+node {
+    version.set("20.17.0")
+    download.set(true)
+    nodeProjectDir.set(file("../frontend"))
+}
+
 // ----------------------
 // Build frontend + copy
 // ----------------------
-val buildFrontend = tasks.register<Exec>("buildFrontend") {
-    workingDir = file("../frontend") // ton dossier angular
-    if (System.getProperty("os.name").lowercase().contains("windows")) {
-        commandLine("cmd", "/c", "npm", "install")
-    } else {
-        commandLine("npm", "install")
-    }   // si nécessaire
-}
-
-val ngBuild = tasks.register<Exec>("ngBuild") {
-    dependsOn(buildFrontend)
-    workingDir = file("../frontend")
-    commandLine("cmd", "/c", "where npm")
-    if (System.getProperty("os.name").lowercase().contains("windows")) {
-        commandLine("cmd", "/c", "npm", "run", "build")
-    } else {
-        commandLine("npm", "run", "build")
-    }
+val npmBuild = tasks.register<NpmTask>("npmBuild") {
+    dependsOn(tasks.named("npmInstall"))
+    args.set(listOf("run", "build"))
 }
 
 // Copier le dist dans resources
 val copyFrontend = tasks.register<Copy>("copyFrontend") {
-    dependsOn(ngBuild)
+    dependsOn(npmBuild)
     from("../frontend/dist/stdsec-frontend/browser")
     into(layout.buildDirectory.dir("resources/main/META-INF/resources"))
 }
